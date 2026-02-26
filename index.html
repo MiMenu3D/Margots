@@ -81,17 +81,12 @@ const anchor = document.querySelector("#anchor");
 const modelCache = new Map();
 const BASE_SCALE = 2.8;
 
-// Dimensiones aproximadas del plato (en metros antes de escala)
-const PLATE_WIDTH = 0.20;
-const PLATE_DEPTH = 0.10;
-
 function createModel(index) {
 
   const wrapper = document.createElement("a-entity");
 
   const model = document.createElement("a-gltf-model");
   model.setAttribute("src", modelPaths[index]);
-  model.setAttribute("position", "0 0 0");
   model.setAttribute("rotation", "90 0 0");
   model.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
 
@@ -115,7 +110,6 @@ function updatePreload() {
   const total = modelPaths.length;
   const prev = (currentIndex - 1 + total) % total;
   const next = (currentIndex + 1) % total;
-
   const needed = [prev, currentIndex, next];
 
   needed.forEach(i => preloadModel(i));
@@ -130,89 +124,77 @@ function updatePreload() {
 
 function showModel(index) {
   updatePreload();
-
   modelCache.forEach((model, i) => {
     model.setAttribute("visible", i === index);
   });
-
   currentIndex = index;
 }
 
-// 🔥 HUMO CORRECTO EN EJE Y SUPERFICIE COMPLETA
-
 function addSmoke(parent) {
 
-  const PARTICLES = 40;
+  const smokeGroup = document.createElement("a-entity");
+  smokeGroup.setAttribute("position", "0 0 0.25"); 
+  parent.appendChild(smokeGroup);
+
+  const PARTICLES = 18;
+  const particles = [];
 
   for (let i = 0; i < PARTICLES; i++) {
 
     const p = document.createElement("a-sphere");
 
-    p.setAttribute("radius", 0.06);
+    p.setAttribute("radius", 0.08);
     p.setAttribute("color", "#ffffff");
-    p.setAttribute("opacity", 0.55);
     p.setAttribute("transparent", true);
+    p.setAttribute("opacity", 0.35);
 
-    parent.appendChild(p);
+    smokeGroup.appendChild(p);
 
-    animateParticle(p);
+    particles.push({
+      el: p,
+      x: (Math.random() - 0.5) * 0.5,
+      y: 0,
+      z: Math.random() * 0.2,
+      life: Math.random()
+    });
   }
-}
 
-function animateParticle(p) {
+  function animate() {
 
-  function rise() {
+    particles.forEach(p => {
 
-    const areaX = PLATE_WIDTH * BASE_SCALE;
-    const areaZ = PLATE_DEPTH * BASE_SCALE;
+      p.life += 0.008;
 
-    const startX = (Math.random() - 0.5) * areaX;
-    const startZ = (Math.random() - 0.5) * areaZ;
-
-    // Aquí usamos Z como altura visual porque el modelo está rotado 90°
-    p.object3D.position.set(startX, startZ, 0.05);
-
-    p.setAttribute("opacity", 0.55);
-
-    let start = null;
-    const duration = 2800;
-
-    function frame(time) {
-
-      if (!start) start = time;
-      const t = (time - start) / duration;
-
-      if (t >= 1) {
-        rise();
-        return;
+      if (p.life > 1) {
+        p.life = 0;
+        p.x = (Math.random() - 0.5) * 0.5;
+        p.z = Math.random() * 0.2;
       }
 
-      // Subida en eje Z (vertical visual)
-      p.object3D.position.z = 0.05 + t * 0.8;
+      p.y = p.life * 0.8;
 
-      // Deriva lateral
-      p.object3D.position.x += (Math.random() - 0.5) * 0.004;
-      p.object3D.position.y += (Math.random() - 0.5) * 0.004;
+      p.el.object3D.position.set(
+        p.x + Math.sin(p.life * 6) * 0.05,
+        p.y,
+        p.z
+      );
 
-      p.setAttribute("opacity", 0.55 * (1 - t));
+      p.el.object3D.scale.setScalar(0.6 + p.life * 1.4);
+      p.el.object3D.material.opacity = 0.35 * (1 - p.life);
+    });
 
-      requestAnimationFrame(frame);
-    }
-
-    requestAnimationFrame(frame);
+    requestAnimationFrame(animate);
   }
 
-  rise();
+  animate();
 }
 
 document.querySelector("#prev").addEventListener("click", () => {
-  const prev = (currentIndex - 1 + modelPaths.length) % modelPaths.length;
-  showModel(prev);
+  showModel((currentIndex - 1 + modelPaths.length) % modelPaths.length);
 });
 
 document.querySelector("#next").addEventListener("click", () => {
-  const next = (currentIndex + 1) % modelPaths.length;
-  showModel(next);
+  showModel((currentIndex + 1) % modelPaths.length);
 });
 
 showModel(currentIndex);
