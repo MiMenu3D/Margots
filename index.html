@@ -68,7 +68,7 @@
 
 <script>
 
-// ================= MODELOS (precarga vecinal estable) =================
+// ================= MODELOS (vecinal estable) =================
 
 const modelPaths = [
   "Plato_01.glb",
@@ -79,9 +79,7 @@ const modelPaths = [
 ];
 
 let currentIndex = 0;
-let currentModel = null;
 const anchor = document.querySelector("#anchor");
-
 const modelCache = new Map();
 const BASE_SCALE = 2.8;
 
@@ -138,19 +136,19 @@ function showModel(index) {
   currentIndex = index;
 }
 
-// ================= HUMO SIMPLE Y ESTABLE =================
+// ================= HUMO — MODO INCENDIO =================
 
 function addSmoke(parent) {
 
-  const PARTICLES = 6;
+  const PARTICLES = 25; // 🔥 muchas
 
   for (let i = 0; i < PARTICLES; i++) {
 
     const p = document.createElement("a-sphere");
 
-    p.setAttribute("radius", 0.015);
-    p.setAttribute("color", "#ffffff");
-    p.setAttribute("opacity", 0.25);
+    p.setAttribute("radius", 0.035);
+    p.setAttribute("color", "#dddddd");
+    p.setAttribute("opacity", 0.5);
     p.setAttribute("transparent", true);
 
     parent.appendChild(p);
@@ -163,14 +161,15 @@ function animateParticle(p) {
 
   function rise() {
 
-    const startX = (Math.random() - 0.5) * 0.12;
-    const startZ = (Math.random() - 0.5) * 0.12;
+    const startX = (Math.random() - 0.5) * 0.3;
+    const startZ = (Math.random() - 0.5) * 0.3;
 
-    p.object3D.position.set(startX, 0.02, startZ);
-    p.setAttribute("opacity", 0.25);
+    // Elevamos el punto de emisión bastante
+    p.object3D.position.set(startX, 0.15, startZ);
+    p.setAttribute("opacity", 0.5);
 
     let start = null;
-    const duration = 2200;
+    const duration = 2500;
 
     function frame(time) {
 
@@ -182,8 +181,15 @@ function animateParticle(p) {
         return;
       }
 
-      p.object3D.position.y = 0.02 + t * 0.35;
-      p.setAttribute("opacity", 0.25 * (1 - t));
+      // Subida fuerte
+      p.object3D.position.y = 0.15 + t * 0.8;
+
+      // Deriva lateral
+      p.object3D.position.x += (Math.random() - 0.5) * 0.002;
+      p.object3D.position.z += (Math.random() - 0.5) * 0.002;
+
+      // Fade out
+      p.setAttribute("opacity", 0.5 * (1 - t));
 
       requestAnimationFrame(frame);
     }
