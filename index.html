@@ -71,12 +71,14 @@
 const modelPaths = [
   "Plato_01.glb",
   "Plato_02.glb",
-  "Plato_03.glb",
+  "Plato_03.glb", // index 2 → tendrá humo
   "Plato_04.glb",
   "Plato_05.glb"
 ];
 
 let currentIndex = 0;
+let activeSmoke = null;
+
 const anchor = document.querySelector("#anchor");
 const modelCache = new Map();
 const BASE_SCALE = 2.8;
@@ -91,12 +93,6 @@ function createModel(index) {
   model.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
 
   wrapper.appendChild(model);
-
-  // 🔒 Añadimos humo SOLO cuando el modelo termine de cargar
-  model.addEventListener("model-loaded", () => {
-    addSmoke(wrapper);
-  });
-
   return wrapper;
 }
 
@@ -126,37 +122,54 @@ function updatePreload() {
 }
 
 function showModel(index) {
+
   updatePreload();
+
+  // eliminar humo anterior si existe
+  if (activeSmoke) {
+    activeSmoke.remove();
+    activeSmoke = null;
+  }
+
   modelCache.forEach((model, i) => {
     model.setAttribute("visible", i === index);
   });
+
   currentIndex = index;
+
+  // Activar humo solo en Plato_03 (index 2)
+  if (index === 2) {
+    const wrapper = modelCache.get(index);
+    activeSmoke = createSmoke();
+    wrapper.appendChild(activeSmoke);
+  }
 }
 
-// 🔥 HUMO SIMPLE Y SEGURO
+// 🔥 HUMO OPTIMIZADO SOLO PARA PLATO 03
 
-function addSmoke(parent) {
+function createSmoke() {
 
   const smokeGroup = document.createElement("a-entity");
-  smokeGroup.setAttribute("position", "0 0 0.25");
-  parent.appendChild(smokeGroup);
+  smokeGroup.setAttribute("position", "0 0 0.18");
 
-  const PARTICLES = 10;
+  const PARTICLES = 14;
   const particles = [];
 
   for (let i = 0; i < PARTICLES; i++) {
 
     const p = document.createElement("a-sphere");
-    p.setAttribute("radius", 0.1);
+    p.setAttribute("radius", 0.035);
     p.setAttribute("color", "#ffffff");
-    p.setAttribute("opacity", 0.35);
+    p.setAttribute("opacity", 0.18);
     p.setAttribute("transparent", true);
 
     smokeGroup.appendChild(p);
 
     particles.push({
       el: p,
-      life: Math.random()
+      life: Math.random(),
+      x: (Math.random() - 0.5) * 0.45,
+      z: (Math.random() - 0.5) * 0.25
     });
   }
 
@@ -164,15 +177,20 @@ function addSmoke(parent) {
 
     particles.forEach(p => {
 
-      p.life += 0.01;
+      p.life += 0.008;
       if (p.life > 1) p.life = 0;
 
-      const height = p.life * 0.8;
-      const drift = Math.sin(p.life * 5) * 0.08;
+      const height = p.life * 0.4; // mitad de antes
+      const driftX = Math.sin(p.life * 4) * 0.03;
+      const driftZ = Math.cos(p.life * 3) * 0.02;
 
-      p.el.object3D.position.set(drift, height, 0);
+      p.el.object3D.position.set(
+        p.x + driftX,
+        height,
+        p.z + driftZ
+      );
 
-      const scale = 1 + p.life * 2;
+      const scale = 0.6 + p.life * 1.2;
       p.el.object3D.scale.set(scale, scale, scale);
 
     });
@@ -181,6 +199,8 @@ function addSmoke(parent) {
   }
 
   animate();
+
+  return smokeGroup;
 }
 
 document.querySelector("#prev").addEventListener("click", () => {
