@@ -1,30 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Menu AR</title>
+<meta charset="UTF-8" />
+<title>Menu AR</title>
 
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <style>
-    body { margin: 0; overflow: hidden; }
+<style>
+body { margin:0; overflow:hidden; }
 
-    .ui-button {
-      position: fixed;
-      bottom: 20px;
-      font-size: 28px;
-      padding: 12px 20px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      border-radius: 12px;
-      border: none;
-      z-index: 10;
-    }
-
-    #prev { left: 20px; }
-    #next { right: 20px; }
-  </style>
+.ui-button {
+  position:fixed;
+  bottom:20px;
+  font-size:28px;
+  padding:12px 20px;
+  background:rgba(0,0,0,0.6);
+  color:white;
+  border-radius:12px;
+  border:none;
+  z-index:10;
+}
+#prev { left:20px; }
+#next { right:20px; }
+</style>
 </head>
 
 <body>
@@ -33,44 +32,44 @@
 <button id="next" class="ui-button">→</button>
 
 <a-scene
-  mindar-image="
-    imageTargetSrc: margot_targets.mind;
-    autoStart: true;
-    filterMinCF: 0.0001;
-    filterBeta: 0.003;
-  "
-  renderer="
-    physicallyCorrectLights: true;
-    colorManagement: true;
-    exposure: 2;
-    toneMapping: ACESFilmicToneMapping;
-  "
-  color-space="sRGB"
-  vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false"
+mindar-image="
+  imageTargetSrc: margot_targets.mind;
+  autoStart: true;
+  filterMinCF: 0.0001;
+  filterBeta: 0.003;
+"
+renderer="
+  physicallyCorrectLights: true;
+  colorManagement: true;
+  exposure: 2;
+  toneMapping: ACESFilmicToneMapping;
+"
+color-space="sRGB"
+vr-mode-ui="enabled:false"
+device-orientation-permission-ui="enabled:false"
 >
 
-  <a-assets timeout="10000">
-    <a-asset-item id="hdrEnv" src="terrace_sea.hdr"></a-asset-item>
-  </a-assets>
+<a-assets timeout="10000">
+  <a-asset-item id="hdrEnv" src="terrace_sea.hdr"></a-asset-item>
+</a-assets>
 
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+<a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
 
-  <a-entity environment-map="src: #hdrEnv; intensity: 1.8"></a-entity>
+<a-entity environment-map="src:#hdrEnv; intensity:1.8"></a-entity>
 
-  <a-light type="ambient" intensity="1.2"></a-light>
-  <a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
-  <a-light type="directional" intensity="1.8" position="-2 2 -1"></a-light>
+<a-light type="ambient" intensity="1.2"></a-light>
+<a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
+<a-light type="directional" intensity="1.8" position="-2 2 -1"></a-light>
 
-  <a-entity mindar-image-target="targetIndex: 0" id="anchor">
-    <a-entity id="stage"></a-entity>
-  </a-entity>
+<a-entity mindar-image-target="targetIndex:0" id="anchor">
+  <a-entity id="stage"></a-entity>
+</a-entity>
 
 </a-scene>
 
 <script>
 
-// ================= MODEL SYSTEM =================
+// ================= CONFIG =================
 
 const modelPaths = [
   "Plato_01.glb",
@@ -80,107 +79,127 @@ const modelPaths = [
   "Plato_05.glb"
 ];
 
-const BASE_SCALE = 2.8; // escala reducida 40%
+const BASE_SCALE = 2.8;
+const OFFSET = 1.8;
+const DURATION = 500;
+
 let currentIndex = 0;
-let isAnimating = false;
+let animating = false;
 
 const stage = document.querySelector("#stage");
 const modelCache = new Map();
 
-function createModel(index) {
-  const model = document.createElement("a-gltf-model");
-  model.setAttribute("src", modelPaths[index]);
-  model.setAttribute("rotation", "90 0 0");
-  model.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
-  model.setAttribute("position", "0 0 0");
-  return model;
+// ================= MODEL SYSTEM =================
+
+function createModel(index){
+  const m = document.createElement("a-gltf-model");
+  m.setAttribute("src", modelPaths[index]);
+  m.setAttribute("rotation", "90 0 0");
+  m.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
+  m.setAttribute("position", "0 0 0");
+  return m;
 }
 
-function preloadModel(index) {
-  if (modelCache.has(index)) return;
+function preload(index){
+  if(modelCache.has(index)) return;
 
-  const model = createModel(index);
-  model.setAttribute("visible", "false");
-  stage.appendChild(model);
-  modelCache.set(index, model);
+  const m = createModel(index);
+  m.setAttribute("visible","false");
+  stage.appendChild(m);
+  modelCache.set(index,m);
 }
 
-function updatePreload() {
+function updatePreload(){
   const total = modelPaths.length;
   const prev = (currentIndex - 1 + total) % total;
   const next = (currentIndex + 1) % total;
 
-  const needed = [prev, currentIndex, next];
+  const needed = [prev,currentIndex,next];
 
-  needed.forEach(i => preloadModel(i));
+  needed.forEach(preload);
 
-  modelCache.forEach((model, index) => {
-    if (!needed.includes(index)) {
-      stage.removeChild(model);
-      modelCache.delete(index);
+  modelCache.forEach((m,i)=>{
+    if(!needed.includes(i)){
+      stage.removeChild(m);
+      modelCache.delete(i);
     }
   });
 }
 
-// ================= TRANSITION SYSTEM =================
+// ================= EASING =================
 
-function transitionTo(newIndex, direction) {
+function easeOutCubic(t){
+  return 1 - Math.pow(1 - t, 3);
+}
 
-  if (isAnimating) return;
-  isAnimating = true;
+function easeInCubic(t){
+  return t * t * t;
+}
 
+// ================= TRANSITION =================
+
+function transitionTo(newIndex, direction){
+
+  if(animating || newIndex === currentIndex) return;
+
+  animating = true;
   updatePreload();
 
   const outgoing = modelCache.get(currentIndex);
   const incoming = modelCache.get(newIndex);
 
-  incoming.setAttribute("visible", "true");
+  incoming.setAttribute("visible","true");
 
-  const offset = 1.8;
-  const startX = direction === "next" ? offset : -offset;
-  const endX = direction === "next" ? -offset : offset;
+  const dir = direction === "next" ? 1 : -1;
 
-  incoming.object3D.position.x = startX;
+  incoming.object3D.position.x = dir * OFFSET;
+  outgoing.object3D.position.x = 0;
 
-  // OUT
-  outgoing.setAttribute("animation__out", {
-    property: "position",
-    to: `${endX} 0 0`,
-    dur: 450,
-    easing: "easeInCubic"
-  });
+  let start = null;
 
-  // IN
-  incoming.setAttribute("animation__in", {
-    property: "position",
-    to: "0 0 0",
-    dur: 450,
-    easing: "easeOutCubic"
-  });
+  function animate(timestamp){
 
-  setTimeout(() => {
-    outgoing.setAttribute("visible", "false");
-    outgoing.object3D.position.x = 0;
-    currentIndex = newIndex;
-    isAnimating = false;
-  }, 500);
+    if(!start) start = timestamp;
+    const elapsed = timestamp - start;
+    const t = Math.min(elapsed / DURATION, 1);
+
+    // OUT
+    outgoing.object3D.position.x =
+      -dir * OFFSET * easeInCubic(t);
+
+    // IN
+    incoming.object3D.position.x =
+      dir * OFFSET * (1 - easeOutCubic(t));
+
+    if(t < 1){
+      requestAnimationFrame(animate);
+    }else{
+      outgoing.setAttribute("visible","false");
+      outgoing.object3D.position.x = 0;
+      incoming.object3D.position.x = 0;
+      currentIndex = newIndex;
+      animating = false;
+    }
+  }
+
+  requestAnimationFrame(animate);
 }
 
 // ================= UI =================
 
-document.querySelector("#next").addEventListener("click", () => {
-  const next = (currentIndex + 1) % modelPaths.length;
-  transitionTo(next, "next");
+document.querySelector("#next").addEventListener("click",()=>{
+  const next = (currentIndex+1)%modelPaths.length;
+  transitionTo(next,"next");
 });
 
-document.querySelector("#prev").addEventListener("click", () => {
-  const prev = (currentIndex - 1 + modelPaths.length) % modelPaths.length;
-  transitionTo(prev, "prev");
+document.querySelector("#prev").addEventListener("click",()=>{
+  const prev = (currentIndex-1+modelPaths.length)%modelPaths.length;
+  transitionTo(prev,"prev");
 });
 
-// Inicial
+// INIT
 updatePreload();
-modelCache.get(currentIndex).setAttribute("visible", "true");
+modelCache.get(currentIndex).setAttribute("visible","true");
 
 </script>
 
