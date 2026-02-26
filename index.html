@@ -36,6 +36,8 @@
   mindar-image="
     imageTargetSrc: margot_targets.mind;
     autoStart: true;
+    filterMinCF: 0.0001;
+    filterBeta: 0.003;
   "
   renderer="
     physicallyCorrectLights: true;
@@ -48,7 +50,7 @@
   device-orientation-permission-ui="enabled: false"
 >
 
-  <a-assets>
+  <a-assets timeout="10000">
     <a-asset-item id="hdrEnv" src="terrace_sea.hdr"></a-asset-item>
   </a-assets>
 
@@ -60,7 +62,9 @@
   <a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
   <a-light type="directional" intensity="1.8" position="-2 2 -1"></a-light>
 
-  <a-entity mindar-image-target="targetIndex: 0" id="anchor"></a-entity>
+  <a-entity mindar-image-target="targetIndex: 0" id="anchor">
+    <a-entity id="stage"></a-entity>
+  </a-entity>
 
 </a-scene>
 
@@ -76,29 +80,20 @@ const modelPaths = [
   "Plato_05.glb"
 ];
 
-const BASE_SCALE = 2.8; // ~40% menos que 4.7
+const BASE_SCALE = 2.8; // escala reducida 40%
 let currentIndex = 0;
 let isAnimating = false;
 
-const anchor = document.querySelector("#anchor");
+const stage = document.querySelector("#stage");
 const modelCache = new Map();
 
 function createModel(index) {
-
-  const wrapper = document.createElement("a-entity");
-
   const model = document.createElement("a-gltf-model");
   model.setAttribute("src", modelPaths[index]);
   model.setAttribute("rotation", "90 0 0");
   model.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
-  model.setAttribute("material", "transparent:true; opacity:1; envMapIntensity:1.8");
-
-  wrapper.appendChild(model);
-
-  // Añadir humo
-  addSmoke(wrapper);
-
-  return wrapper;
+  model.setAttribute("position", "0 0 0");
+  return model;
 }
 
 function preloadModel(index) {
@@ -106,7 +101,7 @@ function preloadModel(index) {
 
   const model = createModel(index);
   model.setAttribute("visible", "false");
-  anchor.appendChild(model);
+  stage.appendChild(model);
   modelCache.set(index, model);
 }
 
@@ -121,7 +116,7 @@ function updatePreload() {
 
   modelCache.forEach((model, index) => {
     if (!needed.includes(index)) {
-      anchor.removeChild(model);
+      stage.removeChild(model);
       modelCache.delete(index);
     }
   });
@@ -141,147 +136,37 @@ function transitionTo(newIndex, direction) {
 
   incoming.setAttribute("visible", "true");
 
-  const startX = direction === "next" ? 1.8 : -1.8;
-  const endX = direction === "next" ? -1.8 : 1.8;
+  const offset = 1.8;
+  const startX = direction === "next" ? offset : -offset;
+  const endX = direction === "next" ? -offset : offset;
 
   incoming.object3D.position.x = startX;
-  incoming.object3D.children[0].material.opacity = 0.2;
 
-  // OUT animation
-  outgoing.setAttribute("animation__moveout", {
+  // OUT
+  outgoing.setAttribute("animation__out", {
     property: "position",
     to: `${endX} 0 0`,
-    dur: 500,
+    dur: 450,
     easing: "easeInCubic"
   });
 
-  outgoing.children[0].setAttribute("animation__fadeout", {
-    property: "material.opacity",
-    to: 0.2,
-    dur: 300,
-    easing: "linear"
-  });
-
-  // IN animation
-  incoming.setAttribute("animation__movein", {
+  // IN
+  incoming.setAttribute("animation__in", {
     property: "position",
     to: "0 0 0",
-    dur: 500,
+    dur: 450,
     easing: "easeOutCubic"
   });
-
-  incoming.children[0].setAttribute("animation__fadein", {
-    property: "material.opacity",
-    to: 1,
-    dur: 350,
-    easing: "linear"
-  });
-
-  // Bounce fuerte + goma
-  setTimeout(() => {
-
-    incoming.setAttribute("animation__bounceX", {
-      property: "position",
-      to: `${direction === "next" ? -0.12 : 0.12} 0 0`,
-      dur: 120,
-      easing: "easeOutQuad"
-    });
-
-    incoming.setAttribute("animation__bounceBack", {
-      property: "position",
-      to: "0 0 0",
-      dur: 220,
-      delay: 120,
-      easing: "easeOutBack"
-    });
-
-    // Squash & stretch vertical (eje Z visual)
-    const model = incoming.children[0];
-
-    model.setAttribute("animation__squash", {
-      property: "scale",
-      to: `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE * 0.75}`,
-      dur: 120,
-      easing: "easeOutQuad"
-    });
-
-    model.setAttribute("animation__stretch", {
-      property: "scale",
-      to: `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`,
-      dur: 220,
-      delay: 120,
-      easing: "easeOutElastic"
-    });
-
-  }, 500);
 
   setTimeout(() => {
     outgoing.setAttribute("visible", "false");
     outgoing.object3D.position.x = 0;
-    outgoing.children[0].material.opacity = 1;
     currentIndex = newIndex;
     isAnimating = false;
-  }, 900);
+  }, 500);
 }
 
-// ================= SMOKE SYSTEM =================
-
-function addSmoke(parent) {
-
-  for (let i = 0; i < 8; i++) {
-
-    const particle = document.createElement("a-sphere");
-
-    particle.setAttribute("radius", 0.02);
-    particle.setAttribute("color", "#ffffff");
-    particle.setAttribute("opacity", 0.25);
-    particle.setAttribute("transparent", true);
-
-    resetParticle(particle);
-
-    parent.appendChild(particle);
-
-    animateParticle(particle);
-  }
-}
-
-function resetParticle(p) {
-  p.object3D.position.set(
-    (Math.random() - 0.5) * 0.15,
-    0.02,
-    (Math.random() - 0.5) * 0.15
-  );
-  p.setAttribute("opacity", 0.25);
-}
-
-function animateParticle(p) {
-
-  const rise = () => {
-
-    p.setAttribute("animation__rise", {
-      property: "position",
-      to: `${p.object3D.position.x} ${0.4 + Math.random() * 0.2} ${p.object3D.position.z}`,
-      dur: 2000 + Math.random() * 1000,
-      easing: "linear"
-    });
-
-    p.setAttribute("animation__fade", {
-      property: "material.opacity",
-      to: 0,
-      dur: 2000,
-      easing: "linear"
-    });
-
-    setTimeout(() => {
-      resetParticle(p);
-      rise();
-    }, 2200);
-  };
-
-  rise();
-}
-
-// ================= UI SYSTEM =================
+// ================= UI =================
 
 document.querySelector("#next").addEventListener("click", () => {
   const next = (currentIndex + 1) % modelPaths.length;
