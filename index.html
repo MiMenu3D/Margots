@@ -92,7 +92,10 @@ function createModel(index) {
 
   wrapper.appendChild(model);
 
-  addSmoke(wrapper);
+  // 🔒 Añadimos humo SOLO cuando el modelo termine de cargar
+  model.addEventListener("model-loaded", () => {
+    addSmoke(wrapper);
+  });
 
   return wrapper;
 }
@@ -130,7 +133,7 @@ function showModel(index) {
   currentIndex = index;
 }
 
-// 🔥 HUMO SEGURO Y ESTABLE
+// 🔥 HUMO SIMPLE Y SEGURO
 
 function addSmoke(parent) {
 
@@ -138,15 +141,15 @@ function addSmoke(parent) {
   smokeGroup.setAttribute("position", "0 0 0.25");
   parent.appendChild(smokeGroup);
 
-  const PARTICLES = 14;
+  const PARTICLES = 10;
   const particles = [];
 
   for (let i = 0; i < PARTICLES; i++) {
 
     const p = document.createElement("a-sphere");
-    p.setAttribute("radius", 0.12);
+    p.setAttribute("radius", 0.1);
     p.setAttribute("color", "#ffffff");
-    p.setAttribute("opacity", 0.3);
+    p.setAttribute("opacity", 0.35);
     p.setAttribute("transparent", true);
 
     smokeGroup.appendChild(p);
@@ -161,19 +164,15 @@ function addSmoke(parent) {
 
     particles.forEach(p => {
 
-      p.life += 0.006;
+      p.life += 0.01;
       if (p.life > 1) p.life = 0;
 
-      const height = p.life * 0.9;
+      const height = p.life * 0.8;
       const drift = Math.sin(p.life * 5) * 0.08;
 
-      p.el.object3D.position.set(
-        drift,
-        height,
-        Math.sin(p.life * 3) * 0.05
-      );
+      p.el.object3D.position.set(drift, height, 0);
 
-      const scale = 0.8 + p.life * 1.8;
+      const scale = 1 + p.life * 2;
       p.el.object3D.scale.set(scale, scale, scale);
 
     });
