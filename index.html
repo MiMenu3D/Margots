@@ -5,83 +5,140 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menu AR</title>
 
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
 <style>
-  body {
-    margin: 0;
-    background: #000;
-    overflow: hidden;
-    font-family: sans-serif;
-  }
+body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
 
-  model-viewer {
-    width: 100vw;
-    height: 100vh;
-    background-color: #000;
-  }
+.ui-button {
+  position: fixed;
+  bottom: 20px;
+  font-size: 26px;
+  padding: 12px 18px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border-radius: 12px;
+  border: none;
+  z-index: 10;
+}
 
-  .ui-button {
-    position: fixed;
-    bottom: 20px;
-    font-size: 28px;
-    padding: 12px 20px;
-    background: rgba(0,0,0,0.6);
-    color: white;
-    border-radius: 12px;
-    border: none;
-    z-index: 10;
-  }
+#prev { left: 20px; }
+#next { right: 20px; }
 
-  #prev { left: 20px; }
-  #next { right: 20px; }
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
 
+<button id="prev" class="ui-button hidden">←</button>
+<button id="next" class="ui-button hidden">→</button>
+
+<!-- WEBXR / SCENE VIEWER -->
 <model-viewer
-  id="viewer"
-  src="Plato_01.glb"
+  id="mv"
+  class="hidden"
   ar
   ar-modes="webxr scene-viewer quick-look"
   ar-placement="floor"
   environment-image="neutral"
   exposure="2"
-  camera-controls
-  auto-rotate
   shadow-intensity="1"
-  shadow-softness="1"
-  loading="eager"
->
+  camera-controls
+  style="width:100vw;height:100vh;">
 </model-viewer>
 
-<button id="prev" class="ui-button">←</button>
-<button id="next" class="ui-button">→</button>
+<!-- A-FRAME FALLBACK -->
+<a-scene
+  id="aframeScene"
+  class="hidden"
+  mindar-image="imageTargetSrc: margot_targets.mind; autoStart: true;"
+  renderer="physicallyCorrectLights:true;colorManagement:true;exposure:2;"
+  color-space="sRGB"
+  vr-mode-ui="enabled:false">
+
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
+  <a-light type="ambient" intensity="1.2"></a-light>
+  <a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
+
+  <a-entity mindar-image-target="targetIndex:0" id="anchor"></a-entity>
+</a-scene>
 
 <script>
 
-const models = [
-  "Plato_01.glb",
-  "Plato_02.glb"
-];
-
+const models = ["Plato_01.glb","Plato_02.glb"];
 let currentIndex = 0;
 
-const viewer = document.getElementById("viewer");
+const mv = document.getElementById("mv");
+const aframeScene = document.getElementById("aframeScene");
+const anchor = document.getElementById("anchor");
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+
+function showButtons() {
+  prevBtn.classList.remove("hidden");
+  nextBtn.classList.remove("hidden");
+}
+
+function hideButtons() {
+  prevBtn.classList.add("hidden");
+  nextBtn.classList.add("hidden");
+}
 
 function showModel(index) {
   currentIndex = index;
-  viewer.src = models[currentIndex];
+
+  if (!mv.classList.contains("hidden")) {
+    mv.src = models[index];
+  }
+
+  if (!aframeScene.classList.contains("hidden")) {
+    anchor.innerHTML = "";
+    const model = document.createElement("a-gltf-model");
+    model.setAttribute("src", models[index]);
+    model.setAttribute("rotation","90 0 0");
+    model.setAttribute("scale","2.8 2.8 2.8");
+    anchor.appendChild(model);
+  }
 }
 
-document.getElementById("prev").addEventListener("click", () => {
-  showModel((currentIndex - 1 + models.length) % models.length);
-});
+prevBtn.onclick = () => showModel((currentIndex - 1 + models.length) % models.length);
+nextBtn.onclick = () => showModel((currentIndex + 1) % models.length);
 
-document.getElementById("next").addEventListener("click", () => {
-  showModel((currentIndex + 1) % models.length);
-});
+async function initAR() {
+
+  // Intentar WebXR real
+  if (navigator.xr) {
+    try {
+      const supported = await navigator.xr.isSessionSupported("immersive-ar");
+      if (supported) {
+        mv.classList.remove("hidden");
+        showButtons();
+        showModel(0);
+        return;
+      }
+    } catch(e){}
+  }
+
+  // Fallback a model-viewer Scene Viewer / Quick Look
+  mv.classList.remove("hidden");
+  showButtons();
+  showModel(0);
+
+  // Si ni siquiera abre AR → activar A-frame
+  mv.addEventListener("ar-status", (e) => {
+    if (e.detail.status === "failed") {
+      mv.classList.add("hidden");
+      aframeScene.classList.remove("hidden");
+      showButtons();
+      showModel(0);
+    }
+  });
+}
+
+initAR();
 
 </script>
 
