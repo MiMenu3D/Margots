@@ -1,0 +1,60 @@
+// 🔥 HUMO PARA AÑADIR A UN WRAPPER DE MODELO
+function createSmoke() {
+
+  const smokeGroup = document.createElement("a-entity");
+
+  // Ajusta esta posición si cambias escala del modelo
+  smokeGroup.setAttribute("position", "0 0 0.18");
+
+  const PARTICLES = 14;
+  const particles = [];
+
+  for (let i = 0; i < PARTICLES; i++) {
+
+    const p = document.createElement("a-sphere");
+    p.setAttribute("radius", 0.035);
+    p.setAttribute("color", "#ffffff");
+    p.setAttribute("opacity", 0.18);
+    p.setAttribute("transparent", true);
+
+    smokeGroup.appendChild(p);
+
+    particles.push({
+      el: p,
+      life: Math.random(),
+      x: (Math.random() - 0.5) * 0.45,
+      z: (Math.random() - 0.5) * 0.25
+    });
+  }
+
+  function animate() {
+
+    particles.forEach(p => {
+
+      p.life += 0.008;
+      if (p.life > 1) p.life = 0;
+
+      const height = p.life * 0.4;
+
+      const driftX = Math.sin(p.life * 4) * 0.03;
+      const driftZ = Math.cos(p.life * 3) * 0.02;
+
+      // 🔥 SUBE EN EJE Y (porque el modelo está rotado 90º)
+      p.el.object3D.position.set(
+        p.x + driftX,
+        height,
+        p.z + driftZ
+      );
+
+      const scale = 0.6 + p.life * 1.2;
+      p.el.object3D.scale.set(scale, scale, scale);
+
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  return smokeGroup;
+}
