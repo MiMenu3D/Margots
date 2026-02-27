@@ -1,44 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Menu AR Hybrid</title>
+<meta charset="UTF-8" />
+<title>Dual AR Test</title>
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 
 <style>
 body { margin:0; overflow:hidden; }
-
 .ui-button {
-  position: fixed;
-  bottom: 20px;
-  font-size: 26px;
-  padding: 12px 18px;
-  background: rgba(0,0,0,0.6);
+  position:fixed;
+  bottom:20px;
+  font-size:28px;
+  padding:12px 20px;
+  background:rgba(0,0,0,0.6);
   color:white;
   border-radius:12px;
   border:none;
-  z-index: 10;
+  z-index:10;
 }
-
 #prev { left:20px; }
 #next { right:20px; }
-
-#enterAR {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 12px 18px;
-  font-size: 20px;
-  background: #000;
-  color: #fff;
-  border-radius: 10px;
-  border: none;
-  display:none;
-  z-index: 20;
-}
 </style>
 </head>
 
@@ -46,176 +30,138 @@ body { margin:0; overflow:hidden; }
 
 <button id="prev" class="ui-button">←</button>
 <button id="next" class="ui-button">→</button>
-<button id="enterAR">Colocar en mesa</button>
 
-<div id="scene-container"></div>
+<!-- ========== A-FRAME (Plato 01) ========== -->
+<a-scene
+  id="aframeScene"
+  mindar-image="imageTargetSrc: margot_targets.mind; autoStart: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-gltf-model 
+      src="Plato_01.glb"
+      rotation="90 0 0"
+      scale="2.8 2.8 2.8">
+    </a-gltf-model>
+  </a-entity>
+</a-scene>
 
 <script>
 
-let currentIndex = 0;
-let mindarScene = null;
-let xrSession = null;
+let currentMode = 0; // 0 = MindAR, 1 = HitTest
+
 let renderer, scene, camera;
-let modelPlaced = false;
+let xrSession = null;
+let hitTestSource = null;
+let localSpace = null;
+let reticle = null;
+let model = null;
 
-const modelPaths = [
-  "Plato_01.glb",
-  "Plato_02.glb"
-];
+async function startHitTest() {
 
-const container = document.getElementById("scene-container");
-const enterARBtn = document.getElementById("enterAR");
+  document.querySelector("#aframeScene").style.display = "none";
 
-
-// =========================
-// CHECK WEBXR SUPPORT
-// =========================
-
-async function supportsWebXR() {
-  if (!navigator.xr) return false;
-  return await navigator.xr.isSessionSupported('immersive-ar');
-}
-
-
-// =========================
-// LOAD PLATO 01 (MINDAR)
-// =========================
-
-function loadMindAR() {
-
-  container.innerHTML = "";
-  enterARBtn.style.display = "none";
-
-  mindarScene = document.createElement("a-scene");
-  mindarScene.setAttribute("mindar-image", "imageTargetSrc: margot_targets.mind; autoStart: true;");
-  mindarScene.setAttribute("color-space","sRGB");
-  mindarScene.setAttribute("vr-mode-ui","enabled:false");
-  mindarScene.setAttribute("device-orientation-permission-ui","enabled:false");
-
-  mindarScene.innerHTML = `
-    <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
-    <a-entity mindar-image-target="targetIndex:0">
-      <a-gltf-model 
-        src="${modelPaths[0]}"
-        rotation="90 0 0"
-        scale="2.8 2.8 2.8">
-      </a-gltf-model>
-    </a-entity>
-  `;
-
-  container.appendChild(mindarScene);
-}
-
-
-// =========================
-// LOAD PLATO 02 (WEBXR HIT TEST)
-// =========================
-
-async function loadHitTest() {
-
-  container.innerHTML = "";
-  enterARBtn.style.display = "block";
-
-  renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+  renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera();
 
-  container.appendChild(renderer.domElement);
-
   const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
   scene.add(light);
 
-  enterARBtn.onclick = async () => {
+  reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.1,0.12,32).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial()
+  );
+  reticle.visible = false;
+  scene.add(reticle);
 
-    xrSession = await navigator.xr.requestSession("immersive-ar", {
-      requiredFeatures: ["hit-test"],
-    });
+  xrSession = await navigator.xr.requestSession("immersive-ar", {
+    requiredFeatures:["hit-test"]
+  });
 
-    renderer.xr.setSession(xrSession);
+  renderer.xr.setSession(xrSession);
 
-    const loader = new THREE.GLTFLoader();
-    loader.load(modelPaths[1], (gltf) => {
-      gltf.scene.scale.set(0.6,0.6,0.6);
-      gltf.scene.visible = false;
-      scene.add(gltf.scene);
+  localSpace = await xrSession.requestReferenceSpace("local");
+  const viewerSpace = await xrSession.requestReferenceSpace("viewer");
+  hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
 
-      renderer.setAnimationLoop((timestamp, frame) => {
+  xrSession.addEventListener("end", () => {
+    renderer.domElement.remove();
+    renderer = null;
+    currentMode = 0;
+    document.querySelector("#aframeScene").style.display = "block";
+  });
 
-        if (!frame) return;
-
-        const referenceSpace = renderer.xr.getReferenceSpace();
-        const session = renderer.xr.getSession();
-
-        session.requestReferenceSpace("viewer").then((viewerSpace) => {
-          session.requestHitTestSource({ space: viewerSpace }).then((source) => {
-
-            const hitTestResults = frame.getHitTestResults(source);
-
-            if (hitTestResults.length > 0 && !modelPlaced) {
-
-              const hit = hitTestResults[0];
-              const pose = hit.getPose(referenceSpace);
-
-              gltf.scene.visible = true;
-              gltf.scene.position.set(
-                pose.transform.position.x,
-                pose.transform.position.y,
-                pose.transform.position.z
-              );
-
-              modelPlaced = true;
-            }
-
-          });
-        });
-
-        renderer.render(scene, camera);
-      });
-    });
-
-  };
+  renderer.setAnimationLoop(renderXR);
 }
 
+function renderXR(timestamp, frame) {
 
-// =========================
-// NAVIGATION
-// =========================
+  if (frame && hitTestSource) {
 
-async function loadCurrent() {
+    const hitTestResults = frame.getHitTestResults(hitTestSource);
 
-  const xrSupported = await supportsWebXR();
+    if (hitTestResults.length > 0) {
 
-  if (currentIndex === 0) {
-    loadMindAR();
-  } else {
-    if (xrSupported) {
-      loadHitTest();
-    } else {
-      alert("WebXR no soportado en este dispositivo");
-      currentIndex = 0;
-      loadMindAR();
+      const hit = hitTestResults[0];
+      const pose = hit.getPose(localSpace);
+
+      reticle.visible = true;
+      reticle.matrix.fromArray(pose.transform.matrix);
+      reticle.matrix.decompose(
+        reticle.position,
+        reticle.quaternion,
+        reticle.scale
+      );
+
+      if (!model) {
+        const loader = new THREE.GLTFLoader();
+        loader.load("Plato_02.glb", (gltf) => {
+
+          model = gltf.scene;
+          model.rotation.x = Math.PI / 2;
+          model.scale.set(2.8,2.8,2.8);
+          model.position.copy(reticle.position);
+          scene.add(model);
+
+        });
+      }
+
     }
   }
+
+  renderer.render(scene, camera);
 }
 
-document.getElementById("prev").onclick = () => {
-  currentIndex = (currentIndex - 1 + 2) % 2;
-  loadCurrent();
-};
+document.querySelector("#next").addEventListener("click", async () => {
 
-document.getElementById("next").onclick = () => {
-  currentIndex = (currentIndex + 1) % 2;
-  loadCurrent();
-};
+  if (currentMode === 0) {
+    currentMode = 1;
+    if (navigator.xr) {
+      await startHitTest();
+    } else {
+      alert("WebXR no soportado");
+    }
+  }
 
-loadCurrent();
+});
+
+document.querySelector("#prev").addEventListener("click", async () => {
+
+  if (currentMode === 1 && xrSession) {
+    await xrSession.end();
+  }
+
+});
 
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
 
 </body>
