@@ -31,10 +31,10 @@ body { margin:0; overflow:hidden; background:black; }
 
 <button id="enterAR">Entrar en AR</button>
 
-<!-- ================= FALLBACK MINDAR ================= -->
+<!-- MINDAR ESCENA (NO autoStart) -->
 <a-scene
   id="mindarScene"
-  mindar-image="imageTargetSrc: margot_targets.mind; autoStart: true;"
+  mindar-image="imageTargetSrc: margot_targets.mind;"
   renderer="physicallyCorrectLights:true; colorManagement:true; exposure:2; toneMapping:ACESFilmicToneMapping;"
   color-space="sRGB"
   vr-mode-ui="enabled:false"
@@ -58,6 +58,8 @@ body { margin:0; overflow:hidden; background:black; }
 
 <script>
 
+const button = document.getElementById("enterAR");
+
 let renderer, scene, camera;
 let xrSession = null;
 let hitTestSource = null;
@@ -66,22 +68,25 @@ let viewerSpace = null;
 let reticle = null;
 let model = null;
 
-const button = document.getElementById("enterAR");
+button.addEventListener("click", async () => {
 
-async function init() {
+  button.style.display = "none";
 
   if (navigator.xr && await navigator.xr.isSessionSupported("immersive-ar")) {
     startHitTest();
   } else {
-    // Fallback MindAR
-    document.getElementById("mindarScene").style.display = "block";
-    button.style.display = "none";
+    startMindAR();
   }
+
+});
+
+function startMindAR() {
+  const sceneEl = document.querySelector("#mindarScene");
+  sceneEl.style.display = "block";
+  sceneEl.components["mindar-image"].start();
 }
 
 async function startHitTest() {
-
-  button.style.display = "none";
 
   renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -96,7 +101,7 @@ async function startHitTest() {
 
   reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.12,0.15,32).rotateX(-Math.PI/2),
-    new THREE.MeshBasicMaterial()
+    new THREE.MeshBasicMaterial({color:0xffffff})
   );
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
@@ -129,7 +134,6 @@ function onSelect() {
       model = gltf.scene;
       model.rotation.x = Math.PI/2;
       model.scale.set(2.8,2.8,2.8);
-
       model.position.setFromMatrixPosition(reticle.matrix);
       scene.add(model);
 
@@ -161,8 +165,6 @@ function render(timestamp, frame) {
 
   renderer.render(scene, camera);
 }
-
-button.addEventListener("click", init);
 
 </script>
 
