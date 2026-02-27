@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>AR Plato</title>
 
 <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -14,22 +14,19 @@ html, body {
   padding: 0;
   overflow: hidden;
   background: black;
-  font-family: sans-serif;
+  height: 100%;
 }
 
 /* Pantalla inicio */
 #startScreen {
   position: fixed;
   width: 100%;
-  height: 100%;
+  height: 100dvh; /* ← CLAVE */
   background-image: url("Loading screen.png");
-  background-size: contain;      /* ← importante */
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-color: black;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   z-index: 10;
 }
 
@@ -37,6 +34,8 @@ html, body {
 #enterButton {
   position: absolute;
   bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 18px 40px;
   font-size: 20px;
   border-radius: 40px;
@@ -46,10 +45,11 @@ html, body {
   font-weight: bold;
 }
 
-/* Loader */
 #loader {
   position: absolute;
   bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 18px;
   color: white;
   display: none;
@@ -98,7 +98,6 @@ button.addEventListener("click", () => {
 
   const ua = navigator.userAgent.toLowerCase();
   const isAndroid = ua.includes("android");
-  const isIOS = /iphone|ipad|ipod/.test(ua);
 
   if (isAndroid) {
 
