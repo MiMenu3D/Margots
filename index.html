@@ -2,113 +2,129 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menu AR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR Plato</title>
+
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; background:#000; font-family:sans-serif; }
-button {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 22px;
-  padding: 14px 22px;
-  border-radius: 12px;
+html, body {
+  margin:0;
+  padding:0;
+  overflow:hidden;
+  background:black;
+  font-family:sans-serif;
+}
+
+#loadingScreen {
+  position:fixed;
+  inset:0;
+  background:url('Loading screen.png') no-repeat center center;
+  background-size:cover;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+
+#startAR {
+  margin-bottom:60px;
+  padding:18px 40px;
+  font-size:20px;
   border:none;
-  background: rgba(0,0,0,0.7);
-  color:white;
-  z-index:10;
+  border-radius:40px;
+  background:white;
+  color:black;
+}
+
+#aFrameContainer {
+  display:none;
+  position:fixed;
+  inset:0;
 }
 </style>
 </head>
+
 <body>
 
-<button id="startAR">Ver en AR</button>
+<div id="loadingScreen">
+  <button id="startAR">Ver en tu mesa</button>
+</div>
+
+<div id="aFrameContainer">
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <a-scene 
+    mindar-image="imageTargetSrc: targets.mind;"
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <a-asset-item id="plato" src="Plato_01.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-gltf-model 
+        src="#plato"
+        position="0 0 0"
+        rotation="0 0 0"
+        scale="1 1 1">
+      </a-gltf-model>
+    </a-entity>
+  </a-scene>
+</div>
 
 <script>
 
-const modelURL = location.origin + location.pathname.replace("index.html","") + "Plato_01.glb";
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-async function start() {
+document.getElementById("startAR").addEventListener("click", () => {
 
-  // 1️⃣ Intentar WebXR real
-  if (navigator.xr) {
-    try {
-      const supported = await navigator.xr.isSessionSupported("immersive-ar");
-      if (supported) {
-        startWebXR();
-        return;
-      }
-    } catch(e){}
+  if (isAndroid) {
+    launchSceneViewer();
+  }
+  else if (isIOS) {
+    launchQuickLook();
+  }
+  else {
+    launchAFRAME();
   }
 
-  // 2️⃣ Intentar Scene Viewer directo (Android)
-  if (/android/i.test(navigator.userAgent)) {
-    const intent = `intent://arvr.google.com/scene-viewer/1.0?file=${modelURL}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;end;`;
-    window.location.href = intent;
-    return;
-  }
+});
 
-  // 3️⃣ Fallback A-Frame marker
-  startAFrame();
+function launchSceneViewer() {
 
+  const link = document.createElement('a');
+  link.setAttribute('rel', 'ar');
+  link.setAttribute('href',
+    `intent://arvr.google.com/scene-viewer/1.0?` +
+    `file=${location.origin}/Margots/Plato_01.glb` +
+    `&mode=ar_preferred` +
+    `#Intent;scheme=https;package=com.google.android.googlequicksearchbox;end;`
+  );
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
-function startWebXR() {
+function launchQuickLook() {
 
-  const script = document.createElement("script");
-  script.type = "module";
-  script.src = "https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js";
-  document.head.appendChild(script);
-
-  script.onload = () => {
-
-    const mv = document.createElement("model-viewer");
-    mv.src = modelURL;
-    mv.setAttribute("ar","");
-    mv.setAttribute("ar-modes","webxr");
-    mv.setAttribute("ar-placement","floor");
-    mv.setAttribute("environment-image","neutral");
-    mv.setAttribute("exposure","2");
-    mv.style.width = "100vw";
-    mv.style.height = "100vh";
-
-    document.body.appendChild(mv);
-    document.getElementById("startAR").remove();
-  };
+  const link = document.createElement('a');
+  link.setAttribute('rel', 'ar');
+  link.setAttribute('href', 'Plato_01.usdz');
+  link.click();
 }
 
-function startAFrame() {
+function launchAFRAME() {
 
-  const aframeScript = document.createElement("script");
-  aframeScript.src = "https://aframe.io/releases/1.4.2/aframe.min.js";
-  document.head.appendChild(aframeScript);
-
-  const mindScript = document.createElement("script");
-  mindScript.src = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js";
-  document.head.appendChild(mindScript);
-
-  mindScript.onload = () => {
-
-    document.body.innerHTML = `
-    <a-scene
-      mindar-image="imageTargetSrc: margot_targets.mind; autoStart: true;"
-      renderer="physicallyCorrectLights:true;colorManagement:true;exposure:2;"
-      color-space="sRGB"
-      vr-mode-ui="enabled:false">
-      <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
-      <a-light type="ambient" intensity="1.2"></a-light>
-      <a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
-      <a-entity mindar-image-target="targetIndex:0">
-        <a-gltf-model src="Plato_01.glb" rotation="90 0 0" scale="2.8 2.8 2.8"></a-gltf-model>
-      </a-entity>
-    </a-scene>
-    `;
-  };
+  document.getElementById("loadingScreen").style.display="none";
+  document.getElementById("aFrameContainer").style.display="block";
 }
-
-document.getElementById("startAR").addEventListener("click", start);
 
 </script>
 
