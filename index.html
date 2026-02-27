@@ -1,30 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Menu AR</title>
+<meta charset="UTF-8">
+<title>Menu AR Hybrid</title>
 
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
-  <style>
-    body { margin: 0; overflow: hidden; }
+<style>
+body { margin:0; overflow:hidden; }
 
-    .ui-button {
-      position: fixed;
-      bottom: 20px;
-      font-size: 28px;
-      padding: 12px 20px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      border-radius: 12px;
-      border: none;
-      z-index: 10;
-    }
+.ui-button{
+position:fixed;
+bottom:20px;
+font-size:28px;
+padding:12px 20px;
+background:rgba(0,0,0,0.6);
+color:white;
+border-radius:12px;
+border:none;
+z-index:10;
+}
 
-    #prev { left: 20px; }
-    #next { right: 20px; }
-  </style>
+#prev{left:20px;}
+#next{right:20px;}
+</style>
 </head>
 
 <body>
@@ -32,144 +32,177 @@
 <button id="prev" class="ui-button">←</button>
 <button id="next" class="ui-button">→</button>
 
-<a-scene
-  mindar-image="
-    imageTargetSrc: margot_targets.mind;
-    autoStart: true;
-    filterMinCF: 0.0001;
-    filterBeta: 0.003;
-  "
-  renderer="
-    physicallyCorrectLights: true;
-    colorManagement: true;
-    exposure: 2;
-    toneMapping: ACESFilmicToneMapping;
-  "
-  color-space="sRGB"
-  vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false"
->
-
-  <a-assets timeout="10000">
-    <a-asset-item id="hdrEnv" src="terrace_sea.hdr"></a-asset-item>
-  </a-assets>
-
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-  <!-- HDR Environment -->
-  <a-entity environment-map="src: #hdrEnv; intensity: 1.8"></a-entity>
-
-  <!-- Luces -->
-  <a-light type="ambient" intensity="1.2"></a-light>
-  <a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
-  <a-light type="directional" intensity="1.8" position="-2 2 -1"></a-light>
-
-  <a-entity mindar-image-target="targetIndex: 0" id="anchor"></a-entity>
-
-</a-scene>
+<div id="ar-container"></div>
 
 <script>
 
-const modelPaths = [
-  "Plato_01.glb",
-  "Plato_02.glb"
-];
+let mode = 0; // 0 = MindAR (Plato 01), 1 = WebXR HitTest (Plato 02)
+let scene = null;
 
-let currentIndex = 0;
+initMindAR();
 
-const anchor = document.querySelector("#anchor");
-const modelCache = new Map();
-const BASE_SCALE = 2.8;
+document.querySelector("#next").onclick = () => {
+  if(mode === 0){
+    mode = 1;
+    destroyScene();
+    initHitTest();
+  }
+};
 
-function createModel(index) {
+document.querySelector("#prev").onclick = () => {
+  if(mode === 1){
+    mode = 0;
+    destroyScene();
+    initMindAR();
+  }
+};
 
-  const wrapper = document.createElement("a-entity");
-
-  const model = document.createElement("a-gltf-model");
-  model.setAttribute("src", modelPaths[index]);
-  model.setAttribute("rotation", "90 0 0");
-  model.setAttribute("scale", `${BASE_SCALE} ${BASE_SCALE} ${BASE_SCALE}`);
-
-  wrapper.appendChild(model);
-  return wrapper;
-}
-
-function preloadModel(index) {
-  if (modelCache.has(index)) return;
-
-  const model = createModel(index);
-  model.setAttribute("visible", "false");
-  anchor.appendChild(model);
-  modelCache.set(index, model);
-}
-
-function updatePreload() {
-
-  const total = modelPaths.length;
-
-  const prev = (currentIndex - 1 + total) % total;
-  const next = (currentIndex + 1) % total;
-
-  const needed = [prev, currentIndex, next];
-
-  needed.forEach(i => preloadModel(i));
-
-  modelCache.forEach((model, index) => {
-    if (!needed.includes(index)) {
-      anchor.removeChild(model);
-      modelCache.delete(index);
-    }
-  });
-}
-
-function showModel(index) {
-
-  currentIndex = index;
-  updatePreload();
-
-  modelCache.forEach((model, i) => {
-    model.setAttribute("visible", i === index);
-  });
-}
-
-document.querySelector("#prev").addEventListener("click", () => {
-  showModel((currentIndex - 1 + modelPaths.length) % modelPaths.length);
-});
-
-document.querySelector("#next").addEventListener("click", () => {
-  showModel((currentIndex + 1) % modelPaths.length);
-});
-
-showModel(currentIndex);
-
-// 🔥 PREVENIR BLOQUEO DE PANTALLA
-let wakeLock = null;
-
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      console.log('Wake Lock activado');
-
-      wakeLock.addEventListener('release', () => {
-        console.log('Wake Lock liberado');
-      });
-    }
-  } catch (err) {
-    console.log('Wake Lock error:', err);
+function destroyScene(){
+  if(scene){
+    scene.parentNode.removeChild(scene);
+    scene = null;
   }
 }
 
-// Intentar activarlo cuando la página cargue
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    requestWakeLock();
-  }
+function initMindAR(){
+
+scene = document.createElement("a-scene");
+
+scene.setAttribute("mindar-image",`
+  imageTargetSrc: margot_targets.mind;
+  autoStart: true;
+  filterMinCF: 0.0001;
+  filterBeta: 0.003;
+`);
+
+scene.setAttribute("renderer",`
+  physicallyCorrectLights: true;
+  colorManagement: true;
+  exposure: 2;
+  toneMapping: ACESFilmicToneMapping;
+`);
+
+scene.setAttribute("color-space","sRGB");
+scene.setAttribute("vr-mode-ui","enabled:false");
+scene.setAttribute("device-orientation-permission-ui","enabled:false");
+
+scene.innerHTML = `
+<a-assets>
+<a-asset-item id="hdrEnv" src="terrace_sea.hdr"></a-asset-item>
+</a-assets>
+
+<a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
+
+<a-entity environment-map="src:#hdrEnv;intensity:1.8"></a-entity>
+
+<a-light type="ambient" intensity="1.2"></a-light>
+<a-light type="directional" intensity="3.0" position="1 3 2"></a-light>
+<a-light type="directional" intensity="1.8" position="-2 2 -1"></a-light>
+
+<a-entity mindar-image-target="targetIndex:0">
+  <a-gltf-model src="Plato_01.glb"
+    rotation="90 0 0"
+    scale="2.8 2.8 2.8">
+  </a-gltf-model>
+</a-entity>
+`;
+
+document.getElementById("ar-container").appendChild(scene);
+}
+
+function initHitTest(){
+
+scene = document.createElement("a-scene");
+
+scene.setAttribute("renderer",`
+  physicallyCorrectLights: true;
+  colorManagement: true;
+  exposure: 2;
+  toneMapping: ACESFilmicToneMapping;
+`);
+
+scene.setAttribute("xr-mode-ui","enabled:false");
+scene.setAttribute("vr-mode-ui","enabled:false");
+
+scene.setAttribute("webxr",`
+  requiredFeatures: hit-test, light-estimation;
+`);
+
+scene.innerHTML = `
+<a-assets>
+<a-asset-item id="model2" src="Plato_02.glb"></a-asset-item>
+</a-assets>
+
+<a-camera></a-camera>
+
+<a-entity light="type:ambient;intensity:1"></a-entity>
+
+<a-entity id="reticle"
+  geometry="primitive:ring;radiusInner:0.05;radiusOuter:0.06"
+  material="color:yellow;shader:flat"
+  rotation="-90 0 0"
+  visible="false">
+</a-entity>
+
+<a-entity id="modelContainer"></a-entity>
+`;
+
+document.getElementById("ar-container").appendChild(scene);
+
+scene.addEventListener("loaded", () => {
+
+const reticle = scene.querySelector("#reticle");
+const modelContainer = scene.querySelector("#modelContainer");
+
+scene.renderer.xr.addEventListener("sessionstart", () => {
+
+const session = scene.renderer.xr.getSession();
+
+session.requestReferenceSpace("viewer").then(viewerSpace=>{
+session.requestHitTestSource({space:viewerSpace}).then(hitTestSource=>{
+
+scene.renderer.setAnimationLoop((timestamp,frame)=>{
+if(!frame) return;
+
+const referenceSpace = scene.renderer.xr.getReferenceSpace();
+const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+if(hitTestResults.length>0){
+const hit = hitTestResults[0];
+const pose = hit.getPose(referenceSpace);
+
+reticle.object3D.visible = true;
+reticle.object3D.position.set(
+pose.transform.position.x,
+pose.transform.position.y,
+pose.transform.position.z
+);
+
+}else{
+reticle.object3D.visible = false;
+}
+});
+});
 });
 
-requestWakeLock();
+scene.addEventListener("click",()=>{
+if(reticle.object3D.visible){
+modelContainer.innerHTML = `
+<a-gltf-model
+src="#model2"
+position="${reticle.object3D.position.x}
+${reticle.object3D.position.y}
+${reticle.object3D.position.z}"
+rotation="0 0 0"
+scale="0.4 0.4 0.4">
+</a-gltf-model>
+`;
+}
+});
+
+});
+}
 
 </script>
-
 </body>
 </html>
