@@ -13,8 +13,8 @@ html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: sans-serif;
   background: black;
+  font-family: sans-serif;
 }
 
 /* Pantalla inicio */
@@ -22,26 +22,34 @@ html, body {
   position: fixed;
   width: 100%;
   height: 100%;
-  background: url("Loading screen.png") center center / cover no-repeat;
+  background-image: url("Loading screen.png");
+  background-size: contain;      /* ← importante */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: black;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   z-index: 10;
 }
 
+/* Botón */
 #enterButton {
-  margin-bottom: 60px;
+  position: absolute;
+  bottom: 60px;
   padding: 18px 40px;
   font-size: 20px;
-  border: none;
   border-radius: 40px;
+  border: none;
   background: white;
   color: black;
   font-weight: bold;
 }
 
+/* Loader */
 #loader {
-  margin-bottom: 80px;
+  position: absolute;
+  bottom: 60px;
   font-size: 18px;
   color: white;
   display: none;
@@ -55,13 +63,11 @@ a-scene {
 
 <body>
 
-<!-- Pantalla inicio -->
 <div id="startScreen">
   <button id="enterButton">Ver en tu mesa</button>
   <div id="loader">Cargando...</div>
 </div>
 
-<!-- A-FRAME (iOS y fallback Android) -->
 <a-scene
   embedded
   vr-mode-ui="enabled: false"
@@ -94,33 +100,21 @@ button.addEventListener("click", () => {
   const isAndroid = ua.includes("android");
   const isIOS = /iphone|ipad|ipod/.test(ua);
 
-  // ANDROID → Scene Viewer
   if (isAndroid) {
 
+    const fileURL = window.location.origin + "/Plato_01.glb";
+
     const sceneViewerUrl =
-      `intent://arvr.google.com/scene-viewer/1.0?` +
-      `file=${encodeURIComponent(window.location.origin + "/Plato_01.glb")}` +
-      `&mode=ar_only` +
-      `&resizable=false` +
-      `#Intent;scheme=https;package=com.google.android.googlequicksearchbox;end;`;
+      `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(fileURL)}&mode=ar_only&resizable=false#Intent;scheme=https;package=com.google.android.googlequicksearchbox;end;`;
 
     window.location.href = sceneViewerUrl;
 
-    // Fallback a A-Frame si falla
     setTimeout(() => {
       startScreen.style.display = "none";
       scene.style.display = "block";
     }, 2500);
-  }
 
-  // iOS → A-Frame directo
-  else if (isIOS) {
-    startScreen.style.display = "none";
-    scene.style.display = "block";
-  }
-
-  // Otros dispositivos → A-Frame
-  else {
+  } else {
     startScreen.style.display = "none";
     scene.style.display = "block";
   }
