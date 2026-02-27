@@ -47,6 +47,8 @@ body {
 
 <script>
 
+// ===== DETECCIÓN SIMPLE =====
+
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isAndroid = /Android/i.test(navigator.userAgent);
 
@@ -60,19 +62,23 @@ document.getElementById("enterBtn").addEventListener("click", () => {
 
 });
 
+// ===== ANDROID → SCENE VIEWER =====
+
 function launchSceneViewer() {
 
-  const modelUrl = location.origin + location.pathname.replace("index.html","") + "Plato_01.glb";
+  // ⚠️ URL ABSOLUTA REAL DE TU MODELO
+  const modelUrl = "https://mimenu3d.github.io/Margots/Plato_01.glb";
 
-  const url = `
-  https://arvr.google.com/scene-viewer/1.0
-  ?file=${modelUrl}
-  &mode=ar_only
-  &resizable=false
-  `;
+  const url =
+    "https://arvr.google.com/scene-viewer/1.0" +
+    "?file=" + encodeURIComponent(modelUrl) +
+    "&mode=ar_only" +
+    "&resizable=false";
 
   window.location.href = url;
 }
+
+// ===== iOS (Y FALLBACK) → A-FRAME =====
 
 function startAFrame() {
 
@@ -123,8 +129,8 @@ function startAFrame() {
   document.body.insertAdjacentHTML("beforeend", sceneHTML);
 }
 
+// ===== EVITAR APAGADO DE PANTALLA =====
 
-// WakeLock para evitar apagado pantalla
 let wakeLock = null;
 
 async function keepAwake() {
