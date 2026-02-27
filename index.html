@@ -106,8 +106,10 @@ function preloadModel(index) {
 function updatePreload() {
 
   const total = modelPaths.length;
+
   const prev = (currentIndex - 1 + total) % total;
   const next = (currentIndex + 1) % total;
+
   const needed = [prev, currentIndex, next];
 
   needed.forEach(i => preloadModel(i));
