@@ -9,14 +9,14 @@
 <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
 
 <style>
-body {
+body{
   margin:0;
   overflow:hidden;
   background:black;
   font-family:sans-serif;
 }
 
-#startScreen {
+#startScreen{
   position:fixed;
   inset:0;
   background:url("Loading screen.png") center/cover no-repeat;
@@ -27,7 +27,7 @@ body {
   z-index:10;
 }
 
-#enterBtn {
+#enterBtn{
   padding:18px 40px;
   font-size:22px;
   border:none;
@@ -36,6 +36,22 @@ body {
   color:black;
   font-weight:bold;
 }
+
+.arrow{
+  position:fixed;
+  bottom:20px;
+  font-size:30px;
+  padding:10px 18px;
+  background:rgba(0,0,0,0.6);
+  color:white;
+  border:none;
+  border-radius:12px;
+  z-index:20;
+  display:none;
+}
+
+#prev{ left:20px; }
+#next{ right:20px; }
 </style>
 </head>
 
@@ -45,43 +61,72 @@ body {
   <button id="enterBtn">Ver en tu mesa</button>
 </div>
 
+<button id="prev" class="arrow">←</button>
+<button id="next" class="arrow">→</button>
+
 <script>
 
-// ===== DETECCIÓN SIMPLE =====
+const models = [
+  "Plato_01.glb",
+  "Plato_02.glb"
+];
+
+let currentIndex = 0;
 
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isAndroid = /Android/i.test(navigator.userAgent);
 
 document.getElementById("enterBtn").addEventListener("click", () => {
+  document.getElementById("startScreen").style.display = "none";
+  showArrows();
 
-  if (isAndroid) {
+  if(isAndroid){
     launchSceneViewer();
-  } else {
+  }else{
     startAFrame();
   }
-
 });
 
-// ===== ANDROID → SCENE VIEWER =====
+function showArrows(){
+  document.getElementById("prev").style.display="block";
+  document.getElementById("next").style.display="block";
+}
 
-function launchSceneViewer() {
+document.getElementById("prev").onclick=()=>{
+  currentIndex=(currentIndex-1+models.length)%models.length;
+  reloadModel();
+};
 
-  const modelUrl = "https://mimenu3d.github.io/Margots/Plato_01.glb";
+document.getElementById("next").onclick=()=>{
+  currentIndex=(currentIndex+1)%models.length;
+  reloadModel();
+};
+
+function reloadModel(){
+  if(isAndroid){
+    launchSceneViewer();
+  }else{
+    document.querySelector("a-gltf-model")
+      .setAttribute("src", models[currentIndex]);
+  }
+}
+
+function launchSceneViewer(){
+
+  const modelUrl =
+    "https://mimenu3d.github.io/Margots/" + models[currentIndex];
 
   const url =
     "https://arvr.google.com/scene-viewer/1.0" +
     "?file=" + encodeURIComponent(modelUrl) +
     "&mode=ar_only" +
-    "&resizable=false";
+    "&resizable=false" +
+    "&disable_occlusion=true";
 
   window.location.href = url;
 }
 
-// ===== iOS (Y FALLBACK) → A-FRAME =====
-
-function startAFrame() {
-
-  document.getElementById("startScreen").style.display = "none";
+function startAFrame(){
 
   const sceneHTML = `
   <a-scene
@@ -116,7 +161,7 @@ function startAFrame() {
 
     <a-entity mindar-image-target="targetIndex: 0">
       <a-gltf-model
-        src="Plato_01.glb"
+        src="${models[currentIndex]}"
         rotation="90 0 0"
         scale="10 10 10">
       </a-gltf-model>
@@ -128,17 +173,13 @@ function startAFrame() {
   document.body.insertAdjacentHTML("beforeend", sceneHTML);
 }
 
-// ===== EVITAR APAGADO DE PANTALLA =====
-
-let wakeLock = null;
-
-async function keepAwake() {
-  try {
+// WakeLock
+let wakeLock=null;
+document.addEventListener("click", async()=>{
+  try{
     wakeLock = await navigator.wakeLock.request('screen');
-  } catch(e) {}
-}
-
-document.addEventListener("click", keepAwake);
+  }catch(e){}
+});
 
 </script>
 
