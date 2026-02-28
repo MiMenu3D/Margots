@@ -3,101 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Menú AR</title>
 
-<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<script type="module"
+src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
 <style>
 body{
   margin:0;
-  font-family:Arial;
   background:black;
-  color:white;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  height:100vh;
-  text-align:center;
+  overflow:hidden;
 }
 
-#viewer{
-  display:none;
+model-viewer{
+  width:100vw;
+  height:100vh;
+  background:black;
+}
+
+.controls{
+  position:fixed;
+  bottom:20px;
+  width:100%;
+  text-align:center;
 }
 
 button{
   padding:14px 24px;
-  font-size:18px;
-  margin:10px;
+  font-size:22px;
+  margin:0 20px;
   border-radius:10px;
   border:none;
-}
-
-#fallback{
-  display:none;
-  margin-top:20px;
-  font-size:14px;
-  opacity:0.8;
 }
 </style>
 </head>
 <body>
 
-<h2 id="title">Plato 01</h2>
+<model-viewer
+  id="mv"
+  src="Plato_01.glb"
+  ar
+  ar-modes="webxr scene-viewer quick-look"
+  camera-controls
+  environment-image="neutral"
+  shadow-intensity="0"
+  exposure="1"
+>
+</model-viewer>
 
-<div>
+<div class="controls">
   <button onclick="prev()">←</button>
   <button onclick="next()">→</button>
 </div>
 
-<button onclick="launchAR()">Ver en tu mesa</button>
-
-<button id="fallback" onclick="openModelViewer()">
-¿No puedes verlo? Ver modelo 3D
-</button>
-
 <script>
 
-const models = [
-  { name:"Plato 01", file:"Plato_01.glb" },
-  { name:"Plato 02", file:"Plato_02.glb" }
-];
-
-let current = 0;
-
-function updateUI(){
-  document.getElementById("title").innerText = models[current].name;
-}
+const models=["Plato_01.glb","Plato_02.glb"];
+let current=0;
 
 function prev(){
-  current = (current-1+models.length)%models.length;
-  updateUI();
+  current=(current-1+models.length)%models.length;
+  document.getElementById("mv").src=models[current];
 }
 
 function next(){
-  current = (current+1)%models.length;
-  updateUI();
+  current=(current+1)%models.length;
+  document.getElementById("mv").src=models[current];
 }
-
-function launchAR(){
-
-  const file = models[current].file;
-
-  const intent = `intent://arvr.google.com/scene-viewer/1.0?file=${location.origin}/${file}&mode=ar_only&disable_occlusion=true#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;end;`;
-
-  window.location.href = intent;
-
-  // Botón salvavidas tras 6 segundos
-  setTimeout(()=>{
-    document.getElementById("fallback").style.display="block";
-  },6000);
-}
-
-function openModelViewer(){
-  window.location.href = models[current].file;
-}
-
-updateUI();
 
 </script>
 </body>
