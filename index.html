@@ -26,6 +26,7 @@ body{
   align-items:center;
   padding-bottom:60px;
   box-sizing:border-box;
+  z-index:10;
 }
 
 button{
@@ -91,17 +92,24 @@ function openFallback(){
 
 function loadAFrame(){
 
-  document.getElementById("startScreen").remove();
+  // Eliminamos pantalla inicial completamente
+  const start = document.getElementById("startScreen");
+  if(start) start.remove();
 
-  const script1 = document.createElement("script");
-  script1.src = "https://aframe.io/releases/1.4.2/aframe.min.js";
-  document.head.appendChild(script1);
+  // Eliminar cualquier escena previa fantasma
+  const oldScene = document.querySelector("a-scene");
+  if(oldScene) oldScene.remove();
 
-  const script2 = document.createElement("script");
-  script2.src = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js";
-  document.head.appendChild(script2);
+  // Cargar A-Frame sin caché
+  const aframe = document.createElement("script");
+  aframe.src = "https://aframe.io/releases/1.4.2/aframe.min.js?v=" + Date.now();
+  document.head.appendChild(aframe);
 
-  script2.onload = () => {
+  const mindar = document.createElement("script");
+  mindar.src = "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js?v=" + Date.now();
+  document.head.appendChild(mindar);
+
+  mindar.onload = () => {
 
     const scene = document.createElement("a-scene");
 
