@@ -5,57 +5,117 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Menú AR</title>
 
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
 <style>
 body{
   margin:0;
   font-family:Arial;
   background:black;
   color:white;
+  height:100vh;
+  overflow:hidden;
+}
+
+#startScreen{
+  position:fixed;
+  width:100%;
+  height:100%;
+  background:url("Loading screen.png") center center / cover no-repeat;
   display:flex;
   flex-direction:column;
+  justify-content:flex-end;
   align-items:center;
-  justify-content:center;
-  height:100vh;
-  text-align:center;
+  padding-bottom:60px;
+  box-sizing:border-box;
 }
 
 button{
-  padding:14px 24px;
-  font-size:18px;
-  margin:10px;
+  padding:11px 20px; /* 20% más pequeño */
+  font-size:15px;
+  margin:8px;
   border-radius:10px;
   border:none;
 }
+
 #fallback{
   display:none;
-  margin-top:20px;
-  font-size:14px;
-  opacity:0.8;
+  font-size:13px;
+  opacity:0.85;
+}
+
+#aframeContainer{
+  display:none;
+  width:100%;
+  height:100%;
 }
 </style>
 </head>
+
 <body>
 
-<h2 id="title">Plato 01</h2>
+<!-- PANTALLA INICIAL -->
+<div id="startScreen">
+  <h2>Logo 3D</h2>
+  <button onclick="launchAR()">Ver en tu mesa</button>
+  <button id="fallback" onclick="openFallback()">¿No puedes verlo? Ver modelo 3D</button>
+</div>
 
-<button onclick="launchAR()">Ver en tu mesa</button>
+<!-- A-FRAME (iOS) -->
+<div id="aframeContainer">
+<a-scene
+  mindar-image="imageTargetSrc: margot_targets.mind; autoStart: true;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; exposure: 2;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
 
-<button id="fallback" onclick="openFallback()">
-¿No puedes verlo? Ver modelo 3D
-</button>
+  <a-assets>
+    <a-asset-item id="model" src="Plato_01.glb"></a-asset-item>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-light type="ambient" intensity="1.2"></a-light>
+  <a-light type="directional" intensity="3" position="1 3 2"></a-light>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-gltf-model
+      src="#model"
+      rotation="90 0 0"
+      scale="10 10 10">
+    </a-gltf-model>
+  </a-entity>
+
+</a-scene>
+</div>
 
 <script>
 
-const model = "Plato_01.glb";
+const modelFile = "Plato_01.glb";
 
 function getBasePath(){
   return window.location.href.substring(0, window.location.href.lastIndexOf('/')+1);
 }
 
+function isIOS(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 function launchAR(){
 
+  if(isIOS()){
+    // iOS → A-FRAME
+    document.getElementById("startScreen").style.display="none";
+    document.getElementById("aframeContainer").style.display="block";
+    return;
+  }
+
+  // Android → Scene Viewer
   const base = getBasePath();
-  const file = base + model;
+  const file = base + modelFile;
 
   const intent =
   `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(file)}&mode=ar_only&resizable=false&disable_occlusion=true&rotation=0,90,0#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;end;`;
@@ -73,5 +133,6 @@ function openFallback(){
 }
 
 </script>
+
 </body>
 </html>
